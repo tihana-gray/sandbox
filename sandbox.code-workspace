@@ -1,0 +1,11 @@
+﻿{
+  "folders": [{ "path": "." }],
+  "settings": {
+    "explorer.excludeGitIgnore": false,
+    "files.exclude": {},
+    "search.exclude": {},
+    "files.watcherExclude": {},
+    "python.defaultInterpreterPath": "C:\\Users\\TihanaGray\\anaconda3\\python.exe",
+    "python.terminal.activateEnvironment": false
+  }
+}

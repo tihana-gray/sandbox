@@ -4,13 +4,15 @@ from io import StringIO
 import csv
 import pandas as pd
 
-# matplotlib for charts (no seaborn, no styles/colours specified)
+# seaborn + matplotlib for visuals
 import matplotlib
-matplotlib.use("Agg")  # safe for headless
+matplotlib.use("Agg")  # safe in headless runs
 import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_theme(style="whitegrid", context="talk")
 
 # ---- Settings ----
-LAST_DAYS = 90  # change if you want a different window
+LAST_DAYS = 90
 
 # ---- Paths ----
 RAW = Path(__file__).parent / "data" / "raw" / "ga4_export.csv"
@@ -19,17 +21,16 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 CHART_DIR = OUT_DIR / "charts"
 CHART_DIR.mkdir(parents=True, exist_ok=True)
 
-CLEAN_CSV   = OUT_DIR / "ga4_clean.csv"
-CHANNELS_CSV= OUT_DIR / f"channels_last_{LAST_DAYS}d.csv"
-LANDING_CSV = OUT_DIR / f"landing_pages_last_{LAST_DAYS}d.csv"
-REPORT      = Path(__file__).parent / "report.md"
+CLEAN_CSV    = OUT_DIR / "ga4_clean.csv"
+CHANNELS_CSV = OUT_DIR / f"channels_last_{LAST_DAYS}d.csv"
+LANDING_CSV  = OUT_DIR / f"landing_pages_last_{LAST_DAYS}d.csv"
+REPORT       = Path(__file__).parent / "report.md"
 
 
 # ---------- Helpers ----------
 def _read_text_lines(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8", errors="replace").splitlines()
     return [ln for ln in text if not ln.startswith("#")]  # drop GA4 comments
-
 
 def _parse_dates_robust(s: pd.Series) -> pd.Series:
     out = []
@@ -43,28 +44,18 @@ def _parse_dates_robust(s: pd.Series) -> pd.Series:
             out.append(pd.to_datetime(v, errors="coerce"))
     return pd.to_datetime(out)
 
-
 def _fmt_int(x):
-    try:
-        return f"{int(x):,}"
-    except Exception:
-        return "–"
-
+    try: return f"{int(x):,}"
+    except Exception: return "–"
 
 def _safe_series(df: pd.DataFrame, name: str):
-    """Return numeric series if present, else zeros."""
     if name in df.columns:
         return pd.to_numeric(df[name], errors="coerce").fillna(0)
     return pd.Series(0, index=df.index, dtype="float")
 
 
-# ---------- CSV parsing (two-row GA4 Explore header with device split) ----------
+# ---------- Parse GA4 CSV (two-row header with device split) ----------
 def parse_device_header_csv(path: Path) -> pd.DataFrame:
-    """
-    First line like:
-      ,,,,Device category,mobile,desktop,tablet,Totals
-    Second line with repeated 'Active users' columns.
-    """
     rows = _read_text_lines(path)
     while rows and not rows[0].strip():
         rows.pop(0)
@@ -74,7 +65,6 @@ def parse_device_header_csv(path: Path) -> pd.DataFrame:
     device_row = next(csv.reader([rows[0]]))
     header_row = next(csv.reader([rows[1]]))
 
-    # find "Device category"
     try:
         idx = device_row.index("Device category")
     except ValueError:
@@ -82,14 +72,11 @@ def parse_device_header_csv(path: Path) -> pd.DataFrame:
 
     device_labels = [c.strip() for c in device_row[idx + 1 :]]  # e.g. mobile, desktop, tablet, Totals
 
-    # rename trailing "Active users" columns to include device labels
     header_cells = header_row[:]
     for i, lab in enumerate(reversed(device_labels), start=1):
         header_cells[-i] = f"Active users ({lab})"
 
-    # keep true data rows; drop totals line that starts with commas
-    data_lines = [ln for ln in rows[2:] if not ln.startswith(",")]
-
+    data_lines = [ln for ln in rows[2:] if not ln.startswith(",")]  # drop totals line
     csv_text = ",".join(header_cells) + "\n" + "\n".join(data_lines)
     df = pd.read_csv(StringIO(csv_text))
     return df
@@ -116,7 +103,7 @@ def load_and_clean(path: Path) -> pd.DataFrame:
         "active_users_total": _safe_series(raw, "Active users (Totals)"),
     })
 
-    # Deduplicate by key fields ignoring event_name (Explore often repeats totals per event)
+    # Deduplicate by key (Explore often repeats totals per event)
     key = ["date", "landing_page", "channel_group", "country"]
     dedup = (df.groupby(key, dropna=False)
                .agg(
@@ -134,10 +121,8 @@ def _window_mask(df: pd.DataFrame, days: int) -> pd.Series:
         return pd.Series([True] * len(df), index=df.index)
     maxd = df["date"].max().normalize()
     start = maxd - pd.Timedelta(days=days - 1)
-    mind = df["date"].min()
-    start = max(start, mind)
+    start = max(start, df["date"].min())
     return (df["date"] >= start) & (df["date"] <= maxd)
-
 
 def _wow_windows(df: pd.DataFrame):
     if "date" not in df.columns or df["date"].isna().all():
@@ -153,7 +138,7 @@ def _wow_windows(df: pd.DataFrame):
     return cur, prev
 
 
-# ---------- Charts ----------
+# ---------- Charts (seaborn) ----------
 def _savefig(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
     plt.tight_layout()
@@ -161,7 +146,6 @@ def _savefig(path: Path):
     plt.close()
 
 def make_charts(df: pd.DataFrame, last_days: int) -> list[str]:
-    """Create charts and return relative paths (for markdown)."""
     rels: list[str] = []
     m = _window_mask(df, last_days)
     dwin = df[m].copy()
@@ -169,50 +153,57 @@ def make_charts(df: pd.DataFrame, last_days: int) -> list[str]:
         return rels
 
     # 1) Daily active users (line)
-    daily = (dwin.groupby("date")["active_users_total"].sum().sort_index())
+    daily = dwin.groupby("date", as_index=False)["active_users_total"].sum().sort_values("date")
     if not daily.empty:
         plt.figure(figsize=(10, 4))
-        daily.plot()
+        sns.lineplot(data=daily, x="date", y="active_users_total")
         plt.title(f"Daily active users — last {last_days} days")
-        plt.xlabel("Date"); plt.ylabel("Active users"); plt.grid(True, axis="y", alpha=0.3)
+        plt.xlabel("Date"); plt.ylabel("Active users")
         p = CHART_DIR / f"daily_active_users_last_{last_days}d.png"
         _savefig(p); rels.append(f"data/processed/charts/{p.name}")
 
     # 2) Channels (bar, top 10)
-    ch = (dwin.groupby("channel_group")["active_users_total"].sum()
-                .sort_values(ascending=False).head(10))
+    ch = (dwin.groupby("channel_group", as_index=False)["active_users_total"]
+              .sum().sort_values("active_users_total", ascending=False).head(10))
     if not ch.empty:
         plt.figure(figsize=(10, 4))
-        ch.plot(kind="bar")
+        sns.barplot(data=ch, x="channel_group", y="active_users_total", errorbar=None)
         plt.title("Channels by active users (top 10)")
         plt.xlabel("Channel"); plt.ylabel("Active users"); plt.xticks(rotation=45, ha="right")
-        plt.grid(True, axis="y", alpha=0.3)
         p = CHART_DIR / f"channels_top10_last_{last_days}d.png"
         _savefig(p); rels.append(f"data/processed/charts/{p.name}")
 
     # 3) Landing pages (barh, top 10)
-    lp = (dwin.groupby("landing_page")["active_users_total"].sum()
-               .sort_values(ascending=False).head(10))
+    lp = (dwin.groupby("landing_page", as_index=False)["active_users_total"]
+              .sum().sort_values("active_users_total", ascending=False).head(10))
     if not lp.empty:
         plt.figure(figsize=(10, 6))
-        lp.sort_values().plot(kind="barh")
+        lp_sorted = lp.sort_values("active_users_total")
+        sns.barplot(data=lp_sorted, y="landing_page", x="active_users_total", errorbar=None)
         plt.title("Top landing pages — active users (top 10)")
         plt.xlabel("Active users"); plt.ylabel("Landing page")
-        plt.grid(True, axis="x", alpha=0.3)
         p = CHART_DIR / f"landing_pages_top10_last_{last_days}d.png"
         _savefig(p); rels.append(f"data/processed/charts/{p.name}")
 
-    # 4) Device split by channel (stacked bar, top 10 channels by total)
-    dev = (dwin.groupby("channel_group")[["active_users_mobile","active_users_desktop","active_users_tablet"]]
-               .sum())
-    dev["total"] = dev.sum(axis=1)
-    dev = dev.sort_values("total", ascending=False).head(10).drop(columns="total")
-    if not dev.empty:
+    # 4) Device split by channel (grouped bars, top 10 channels)
+    dev_long = dwin.melt(
+        id_vars=["channel_group"],
+        value_vars=["active_users_mobile","active_users_desktop","active_users_tablet"],
+        var_name="device", value_name="active_users"
+    )
+    dev_long["device"] = (dev_long["device"]
+                          .str.replace("active_users_", "")
+                          .str.replace("_", " ")
+                          .str.title())
+    totals = (dev_long.groupby("channel_group")["active_users"]
+              .sum().sort_values(ascending=False).head(10).index)
+    top = dev_long[dev_long["channel_group"].isin(totals)]
+    if not top.empty:
         plt.figure(figsize=(10, 5))
-        dev.plot(kind="bar", stacked=True)
+        sns.barplot(data=top, x="channel_group", y="active_users", hue="device", errorbar=None)
         plt.title("Device split by channel (top 10 channels)")
         plt.xlabel("Channel"); plt.ylabel("Active users"); plt.xticks(rotation=45, ha="right")
-        plt.grid(True, axis="y", alpha=0.3)
+        plt.legend(title=None, loc="best")
         p = CHART_DIR / f"device_split_by_channel_last_{last_days}d.png"
         _savefig(p); rels.append(f"data/processed/charts/{p.name}")
 
@@ -224,33 +215,18 @@ def summarise(df: pd.DataFrame, last_days: int = LAST_DAYS) -> str:
     m = _window_mask(df, last_days)
     dwin = df[m].copy()
 
-    # coverage
     if "date" in dwin.columns and not dwin["date"].isna().all():
         end = dwin["date"].max().date()
         start = dwin["date"].min().date()
     else:
-        end = start = None
+        start = end = None
 
-    # Channels — totals
     by_ch = (dwin.groupby("channel_group", dropna=False)[["active_users_total"]]
-                  .sum()
-                  .sort_values("active_users_total", ascending=False)
-                  .reset_index())
+                  .sum().sort_values("active_users_total", ascending=False).reset_index())
 
-    # Devices by channel
-    dev_by_ch = (dwin.groupby("channel_group", dropna=False)[
-                    ["active_users_mobile","active_users_desktop",
-                     "active_users_tablet","active_users_total"]]
-                    .sum()
-                    .sort_values("active_users_total", ascending=False)
-                    .reset_index())
-
-    # Landing pages — top 15
     by_lp = (dwin.groupby("landing_page", dropna=False)[["active_users_total"]]
-                  .sum().sort_values("active_users_total", ascending=False)
-                  .head(15).reset_index())
+                  .sum().sort_values("active_users_total", ascending=False).head(15).reset_index())
 
-    # Week-over-week movers
     cur_m, prev_m = _wow_windows(df)
     cur_lp = df[cur_m].groupby("landing_page", dropna=False)["active_users_total"].sum()
     prev_lp = df[prev_m].groupby("landing_page", dropna=False)["active_users_total"].sum()
@@ -272,21 +248,15 @@ def summarise(df: pd.DataFrame, last_days: int = LAST_DAYS) -> str:
         lines.append(f"_Data window: **{start} → {end}** (from CSV)_")
     lines.append("")
     total_active = int(dwin["active_users_total"].sum()) if not dwin.empty else 0
-    n_channels = by_ch.shape[0]
-    n_pages = by_lp.shape[0]
-    lines.append(f"**Overview**  •  Active users (sum): **{_fmt_int(total_active)}**  "
-                 f"•  Channels: **{n_channels}**  •  Top pages listed: **{n_pages}**")
+    lines.append(f"**Overview** • Active users (sum): **{_fmt_int(total_active)}**")
     lines.append("")
 
-    # Visuals (add chart images)
-    chart_paths = make_charts(df, last_days)
-    if chart_paths:
-        lines.append("## Visuals")
-        for p in chart_paths:
-            lines.append(f"![]({p})")
-        lines.append("")
+    # Visuals
+    for p in make_charts(df, last_days):
+        lines.append(f"![]({p})")
+    lines.append("")
 
-    # Channels
+    # Tables
     lines.append("## Channels — Active users")
     if not by_ch.empty:
         lines.append("| Channel | Active users |")
@@ -298,20 +268,6 @@ def summarise(df: pd.DataFrame, last_days: int = LAST_DAYS) -> str:
         lines.append("_No data in window._")
     lines.append("")
 
-    # Device split by channel (table)
-    lines.append("## Device split by channel (table)")
-    if not dev_by_ch.empty:
-        lines.append("| Channel | Mobile | Desktop | Tablet | Total |")
-        lines.append("|---|---:|---:|---:|---:|")
-        for r in dev_by_ch.itertuples():
-            ch = r.channel_group if (pd.notna(r.channel_group) and r.channel_group) else "Unassigned"
-            lines.append(f"| {ch} | {_fmt_int(r.active_users_mobile)} | {_fmt_int(r.active_users_desktop)} | "
-                         f"{_fmt_int(r.active_users_tablet)} | {_fmt_int(r.active_users_total)} |")
-    else:
-        lines.append("_No device data available._")
-    lines.append("")
-
-    # Top landing pages
     lines.append("## Top landing pages — Active users")
     if not by_lp.empty:
         lines.append("| Landing page | Active users |")
@@ -320,28 +276,6 @@ def summarise(df: pd.DataFrame, last_days: int = LAST_DAYS) -> str:
             lines.append(f"| {r.landing_page} | {_fmt_int(r.active_users_total)} |")
     else:
         lines.append("_No data in window._")
-    lines.append("")
-
-    # Movers
-    lines.append("## Week-over-week movers (landing pages)")
-    if not movers.empty:
-        lines.append("**Top risers**")
-        lines.append("")
-        lines.append("| Landing page | Δ Active users | Last 7d | Prev 7d |")
-        lines.append("|---|---:|---:|---:|")
-        for r in risers.itertuples():
-            lines.append(f"| {r.landing_page} | {int(r.delta_active_users):+,.0f} | "
-                         f"{_fmt_int(r.active_users_cur)} | {_fmt_int(r.active_users_prev)} |")
-        lines.append("")
-        lines.append("**Top fallers**")
-        lines.append("")
-        lines.append("| Landing page | Δ Active users | Last 7d | Prev 7d |")
-        lines.append("|---|---:|---:|---:|")
-        for r in fallers.itertuples():
-            lines.append(f"| {r.landing_page} | {int(r.delta_active_users):+,.0f} | "
-                         f"{_fmt_int(r.active_users_cur)} | {_fmt_int(r.active_users_prev)} |")
-    else:
-        lines.append("_Not enough data to compute movers._")
 
     return "\n".join(lines)
 

@@ -1,54 +1,42 @@
-# GA4 Landing Page & Channel Insights (Active users, from CSV)
-_Data through **2025-09-24**_
+# GA4 Landing Page & Channel Insights — last 90 days
+_Data window: **2025-06-27 → 2025-09-24** (from CSV)_
 
-## Channels — last 28 days
+**Overview** • Active users (sum): **9,534**
 
+![](data/processed/charts/daily_active_users_last_90d.png)
+![](data/processed/charts/channels_top10_last_90d.png)
+![](data/processed/charts/landing_pages_top10_last_90d.png)
+![](data/processed/charts/device_split_by_channel_last_90d.png)
+
+## Channels — Active users
 | Channel | Active users |
 |---|---:|
-| Organic Search | 1,116 |
-| Paid Search | 664 |
-| Direct | 617 |
-| Referral | 72 |
-| Cross-network | 56 |
-| Email | 34 |
-| Unassigned | 19 |
-| Organic Video | 12 |
-| Organic Social | 4 |
-| Paid Other | 2 |
+| Organic Search | 4,003 |
+| Paid Search | 2,795 |
+| Direct | 2,022 |
+| Referral | 205 |
+| Cross-network | 189 |
+| Unassigned | 128 |
+| Email | 119 |
+| Organic Video | 37 |
+| Organic Social | 33 |
+| Paid Other | 3 |
 
-## Top 10 Landing Pages — last 28 days (by active users)
-
+## Top landing pages — Active users
 | Landing page | Active users |
 |---|---:|
-| /cold-rooms-lp | 440 |
-| / | 381 |
-| /refrigerated-units-lp | 94 |
-| /cold-stores | 94 |
-| /news/cold-storage-fruit-and-veg.html | 88 |
-| /blast-freezers-lp | 66 |
-| /refrigerated-container/40ft.html | 61 |
-| /refrigerated-container/10ft.html | 56 |
-| /news/what-blast-freezer.html | 55 |
-| /get-in-touch-with-crs | 49 |
-
-## Week-over-Week Movers — Landing pages (Top 5 / Bottom 5)
-
-**Top risers**
-
-| Landing page | Δ Active users | Last 7d | Prev 7d |
-|---|---:|---:|---:|
-| /cold-rooms-lp | +12 | 114 | 102 |
-| / | +7 | 115 | 108 |
-| /storage/freezer-containers.html | +6 | 14 | 8 |
-| /refrigerated-container/20ft.html | +6 | 10 | 4 |
-| /specialist/double-stacked.html | +6 | 7 | 1 |
-
-**Top fallers**
-
-| Landing page | Δ Active users | Last 7d | Prev 7d |
-|---|---:|---:|---:|
-| /refrigerated-container/10ft.html | -6 | 14 | 20 |
-| /refrigerated-units-lp | -6 | 19 | 25 |
-| /news/cold-storage-fruit-and-veg.html | -8 | 18 | 26 |
-| /news/what-blast-freezer.html | -8 | 11 | 19 |
-| /refrigerated-container/40ft.html | -13 | 6 | 19 |
+| /cold-rooms-lp | 1,903 |
+| / | 1,203 |
+| /cold-stores | 438 |
+| /refrigerated-units-lp | 392 |
+| /news/cold-storage-fruit-and-veg.html | 294 |
+| /news/what-blast-freezer.html | 230 |
+| /refrigerated-container/10ft.html | 201 |
+| (not set) | 194 |
+| /blast-freezers-lp | 164 |
+| /storage/freezer-containers.html | 145 |
+| /refrigerated-container/40ft.html | 137 |
+| /get-in-touch-with-crs | 131 |
+| /blast-freezer | 118 |
+| /refrigerated-container/20ft.html | 98 |
+| /enquiry | 85 |

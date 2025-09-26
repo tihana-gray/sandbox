@@ -6,10 +6,10 @@ __pycache__/
 *.pyo
 
 # --- Project outputs & local data ---
-# Ignore ONLY raw inputs
+# Ignore ONLY raw inputs; keep processed outputs & charts
 ga4_insights/data/raw/
 
-# Keep processed outputs & charts visible/trackable
+# Ensure these paths are NOT ignored
 !ga4_insights/data/
 !ga4_insights/data/processed/
 !ga4_insights/data/processed/*.csv

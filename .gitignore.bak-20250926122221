@@ -16,7 +16,7 @@ ga4_insights/data/raw/
 !ga4_insights/data/processed/charts/
 !ga4_insights/data/processed/charts/*.png
 
-# --- Secrets (adjust if needed) ---
+# --- Secrets (adjust if you prefer) ---
 ga4_insights/.env
 *.json
 
