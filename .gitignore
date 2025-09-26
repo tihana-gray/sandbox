@@ -1,0 +1,25 @@
+﻿# --- Python virtual envs & caches ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# --- Project outputs & local data ---
+ga4_insights/data/
+ga4_insights/.env
+
+# --- Secrets (adjust if you prefer) ---
+*.json
+
+# --- Notebooks & checkpoints ---
+.ipynb_checkpoints/
+
+# --- Editors ---
+.vscode/
+.idea/
+
+# --- OS noise ---
+Thumbs.db
+Desktop.ini
+.DS_Store
